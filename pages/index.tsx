@@ -72,6 +72,13 @@ export default function Home() {
     const handleChangeOracle = (e: FormEvent<HTMLInputElement>) => {
         setOracle(e.currentTarget.value);
     };
+    /**
+     * Prevent fee changing on scroll
+     * @param e
+     */
+    const handleScroll = (e: FormEvent<HTMLInputElement>) => {
+        e.currentTarget.blur();
+    };
 
     /**
      * Delete the outcome selected to outcomes
@@ -213,6 +220,7 @@ export default function Home() {
                         value={fee}
                         name="fee"
                         onChange={handleChangeFee}
+                        onWheelCapture={handleScroll}
                     />
 
                     <div>
