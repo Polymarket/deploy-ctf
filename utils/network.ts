@@ -86,13 +86,13 @@ const environments: { mainnet: Environment; mumbai: Environment } = {
             explorerUrl: "https://goerli.etherscan.io",
         },
         maticNetwork: {
-            rpcUrl: "https://rpc-mumbai.matic.today",
+            rpcUrl: "https://rpc-mumbai.maticvigil.com/v1/ea1bb94329e5fa87489704c1141745bdab51f1b0",
             chainId: 80001,
             explorerUrl: "https://explorer-mumbai.maticvigil.com",
         },
-        strapiUrl: "",
+        strapiUrl: "https://strapi-mumbai-staging.herokuapp.com/",
         subgraphUrl:
-            "https://api.mumbai-graph.matic.today/subgraphs/name/TokenUnion/polymarket",
+            "https://api.thegraph.com/subgraphs/name/tokenunion/polymarket-mumbai",
         maticUsdc: "0xdEe897d5E6eaA6365F293c37cB3fA8335B9B8f3F",
         mainnetUsdc: "0x9DA9Bc12b19b22d7C55798F722A1B6747AE9A710",
         maticBridge: {
@@ -131,3 +131,4 @@ export const MAINNET_USDC_ADDRESS =
     selectedEnvironmentConfig.mainnetUsdc;
 
 export const ORACLE_ADDRESS = selectedEnvironmentConfig.oracle;
+export const STRAPI_URL = selectedEnvironmentConfig.strapiUrl;

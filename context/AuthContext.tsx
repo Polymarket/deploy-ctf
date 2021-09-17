@@ -1,17 +1,20 @@
+/* eslint-disable dot-notation */
 import { createContext, useState, useEffect, useContext } from "react";
 import { Magic } from "magic-sdk";
 import { useRouter } from "next/router";
 import { ethers } from "ethers";
+
 import { MATIC_CONFIG, MAGIC_KEY } from "../utils/network";
 
 import { User } from "../models/User";
+import { APIWebClient } from "../api/ApiWebClient";
 
 interface AuthContext {
     user: User | null;
     loginUser: (email: string) => void;
     logoutUser: () => void;
     checkUserLoggedIn: () => void;
-    getToken: () => void;
+    getToken: () => Promise<string>;
     provider: ethers.providers.Web3Provider | null;
 }
 
@@ -43,6 +46,21 @@ export const AuthProvider = (props) => {
             setUser(user);
         }
     };
+    /**
+     * Retrieve Magic Issued Bearer Token
+     * This allows User to make authenticated requests
+     */
+    const getToken = async () => {
+        let token: string;
+
+        try {
+            token = await magic.user.getIdToken();
+        } catch (err) {
+            logoutUser();
+        }
+
+        return token;
+    };
 
     /**
      * Log the user in
@@ -54,31 +72,22 @@ export const AuthProvider = (props) => {
             const magicProvider = new ethers.providers.Web3Provider(
                 magic.rpcProvider,
             );
+            const token = await getToken();
+            const userRole = await APIWebClient.getUser(token);
+            console.log(userRole.data.role);
+            if (userRole.data.role["name"] !== "Market Creator") {
+                throw new Error("You are not authorized to use this app");
+            }
             const signer = magicProvider.getSigner();
             const address = await signer.getAddress();
             setProvider(magicProvider);
             setUser({ email, address });
+
             router.push("/");
         } catch (err) {
             logoutUser();
+            alert(err);
         }
-    };
-
-    /**
-     * Retrieve Magic Issued Bearer Token
-     * This allows User to make authenticated requests
-     */
-    const getToken = async () => {
-        let token: string;
-
-        try {
-            token = await magic.user.getIdToken();
-            localStorage.setItem("token", token);
-        } catch (err) {
-            logoutUser();
-        }
-
-        return token;
     };
 
     /**
@@ -95,11 +104,18 @@ export const AuthProvider = (props) => {
                 );
                 const signer = magicProvider.getSigner();
                 const address = await signer.getAddress();
+                const token = await getToken();
+                const userRole = await APIWebClient.getUser(token);
+                if (userRole.data.role["name"] !== "Market Creator") {
+                    throw new Error("You are not authorized to use this app");
+                }
+
                 setProvider(magicProvider);
                 setUser({ email, address });
             }
         } catch (err) {
             logoutUser();
+            alert(err);
         }
     };
 

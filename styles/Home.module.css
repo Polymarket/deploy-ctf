@@ -52,3 +52,72 @@
 .check_p {
     color: tomato;
 }
+.toggle {
+    position: fixed; 
+    z-index: 1; 
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.7); 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+  
+.toggle_content {
+    background-color: #fefefe;
+    width: 300px;
+}
+
+.toggle_header {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    background: #000000;
+    color: #FFFFFF;
+}
+
+.toggle_body {
+  
+    display: flex;
+    flex-direction: column;
+   
+}
+
+.togglel_body p {
+    font-size: 18px;
+}
+
+.toggle_body div {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+}
+
+.button_yes {
+    font-size: 24px;
+    background: mediumseagreen !important;
+    color: #ffffff;
+    border: none;
+    border-radius: 2px;
+    display: inline-block;
+    width: 40%;
+    padding: 12px;
+    margin-bottom: 24px;
+    
+}
+
+.button_no {
+    font-size: 24px;
+    background: #000000;
+    color: #ffffff;
+    border: none;
+    border-radius: 2px;
+    display: inline-block;
+    width: 40%;
+    padding: 12px;
+    margin-bottom: 24px;
+}

@@ -1,8 +1,11 @@
+/* eslint-disable react/jsx-props-no-spreading */
+/* eslint-disable react-hooks/exhaustive-deps */
 import Head from "next/head";
-import { useContext, useState, FormEvent } from "react";
+import { useContext, useState, FormEvent, useEffect } from "react";
 
+import { useForm } from "react-hook-form";
 import AuthContext from "../context/AuthContext";
-import { deployMarket } from "../utils/deployMarket";
+import { createStrapiMarket, deployMarket } from "../utils/deployMarket";
 import { getGasPrice } from "../utils/gas_lib";
 import Confirm from "../components/Confirm";
 
@@ -10,46 +13,55 @@ import styles from "../styles/Home.module.css";
 import { Market } from "../models/Market";
 import { Question } from "../models/Question";
 import { Condition } from "../models/Condition";
+import { Form, FormTypes } from "../models/FormInput";
 
 export default function Home() {
-    const { user, provider } = useContext(AuthContext);
-    const [question, setQuestion] = useState(new Question());
+    const { user, provider, getToken } = useContext(AuthContext);
+
     const [outcomes, setOutcomes] = useState([]);
-    const [outcome, setOutcome] = useState("");
-    const [fee, setFee] = useState(0.02);
-    const [oracle, setOracle] = useState("");
-    const [checkTitle, setCheckTitle] = useState(false);
-    const [checkDescription, setCheckDescription] = useState(false);
+
+    const [outcomeState, setOutcomeState] = useState("");
+
+    const [wideFormat, setWideformat] = useState<boolean>(false);
+
     const [loading, setLoading] = useState(false);
     const [confirm, setConfirm] = useState(false);
     const [manualGasCheck, setManualGasCheck] = useState(false);
-    const [userDefinedGas, setUserDefinedGas] = useState<number>(0);
 
-    /**
-     * On change of inputs update the question
-     * @param e
-     */
-    const handleChangeQuestion = (
-        e: FormEvent<HTMLInputElement> | FormEvent<HTMLTextAreaElement>,
-    ) => {
-        const { name, value } = e.currentTarget;
-        setQuestion((element) => ({ ...element, [name]: value }));
-    };
+    const {
+        register,
+        setValue,
+        getValues,
+        handleSubmit,
+        watch,
+        formState: { errors },
+    } = useForm<FormTypes>({
+        defaultValues: {
+            [Form.Title]: "",
+            [Form.Description]: "",
+            [Form.Outcome]: "",
+            [Form.Outcomes]: [],
+            [Form.Category]: "",
+            [Form.Image]: "",
+            [Form.Icon]: "",
+            [Form.Fee]: 0.02,
+            [Form.Oracle]: "",
+            [Form.ResolutionSource]: "",
+            [Form.SubmittedBy]: "",
+            [Form.EndDate]: "",
+            [Form.WideFormat]: false,
+            [Form.UserDefinedGas]: 0,
+            [Form.MarketMakerAddress]: undefined,
+        },
+    });
+    const hasAddress = watch(Form.MarketMakerAddress);
 
     /**
      * On change of inputs update the outcome
      * @param e
      */
     const handleChangeOutcome = (e: FormEvent<HTMLInputElement>) => {
-        setOutcome(e.currentTarget.value);
-    };
-
-    /**
-     * On change of inputs update the fee
-     * @param e
-     */
-    const handleChangeFee = (e: FormEvent<HTMLInputElement>) => {
-        setFee(parseFloat(e.currentTarget.value));
+        setOutcomeState(e.currentTarget.value);
     };
 
     /**
@@ -58,20 +70,37 @@ export default function Home() {
     const handleClickOutcome = (e: FormEvent<HTMLButtonElement>) => {
         e.preventDefault();
 
-        if (outcome && outcome !== "") {
-            outcomes.push(outcome);
+        if (outcomeState && outcomeState !== "") {
+            outcomes.push(outcomeState);
             setOutcomes(outcomes);
-            setOutcome("");
+            setOutcomeState("");
+        }
+        const value = getValues(Form.Outcome);
+        console.log(value);
+        const array = getValues(Form.Outcomes);
+        if (value && value !== "") {
+            array.push(value);
+            setValue(Form.Outcomes, array);
+            setValue(Form.Outcome, "");
         }
     };
 
     /**
-     * On change of inputs update the oracle
+     * On change of inputs update the end date
      * @param e
      */
-    const handleChangeOracle = (e: FormEvent<HTMLInputElement>) => {
-        setOracle(e.currentTarget.value);
+    const handleChangeEndDate = (e: FormEvent<HTMLInputElement>) => {
+        const date = new Date(e.currentTarget.value);
+
+        const formattedDate = date.toLocaleDateString("default", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC",
+        });
+        setValue(Form.EndDate, formattedDate);
     };
+
     /**
      * Prevent fee changing on scroll
      * @param e
@@ -79,66 +108,113 @@ export default function Home() {
     const handleScroll = (e: FormEvent<HTMLInputElement>) => {
         e.currentTarget.blur();
     };
+    const handleYesClick = () => {
+        setWideformat(true);
+        setValue(Form.WideFormat, true);
+    };
+    const handleNoClick = () => {
+        setWideformat(false);
+        setValue(Form.WideFormat, false);
+    };
 
     /**
      * Delete the outcome selected to outcomes
      * @param outcome
      */
     const deleteOutcome = (outcomeToDelete: string) => {
-        const newOutcomes = [...outcomes];
+        const newOutcomesState = [...outcomes];
+        const idx = outcomes.findIndex((out) => out === outcomeToDelete);
+
+        if (idx > -1) {
+            newOutcomesState.splice(idx, 1);
+        }
+
+        setOutcomes(newOutcomesState);
+        const newOutcomes = getValues(Form.Outcomes);
         const index = outcomes.findIndex((out) => out === outcomeToDelete);
 
         if (index > -1) {
             newOutcomes.splice(index, 1);
         }
 
-        setOutcomes(newOutcomes);
+        setValue(Form.Outcomes, newOutcomes);
     };
 
-    /**
-     * Requires confirm to save Markets
-     * @param e
-     */
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-
-        const invalidTitle = question.title === "";
-        const invalidDescription = question.description === "";
-
-        setCheckTitle(invalidTitle);
-        setCheckDescription(invalidDescription);
-
-        if (!invalidTitle && !invalidDescription) {
-            setConfirm(true);
-        } else {
-            setLoading(false);
-        }
-    };
-
-    const handleChangeUserGasPrice = (e: FormEvent<HTMLInputElement>) => {
-        setUserDefinedGas(parseFloat(e.currentTarget.value));
+    const onSubmit = () => {
+        setConfirm(true);
     };
 
     /**
      * Deploy the market
      */
-    const deploy = async () => {
+    const deploy = async (data: FormTypes) => {
         setLoading(true);
+        const question = new Question(data.title, data.description);
 
-        const condition = new Condition(outcomes, oracle);
-        const market: Market = new Market(question, condition, fee);
+        const condition = new Condition(data.outcomes, data.oracle);
+        const market: Market = new Market(question, condition, data.fee);
         const signer = provider.getSigner();
+
         try {
-            const gasPrice = await getGasPrice(userDefinedGas, provider);
-            const deployRes = await deployMarket(market, signer, gasPrice);
-            alert(`deploy transaction hash: ${deployRes?.hash}`);
+            const gasPrice = await getGasPrice(data.userDefinedGas, provider);
+            const deployAddress = await deployMarket(market, signer, gasPrice);
+            setValue(Form.MarketMakerAddress, deployAddress);
         } catch (err) {
             alert(`Something went wrong ${err.toString()}`);
+            setLoading(false);
+            setConfirm(false);
         }
-
+    };
+    const create = async (values: FormTypes) => {
+        console.log("Creating Strapi Market...");
+        const data = {
+            title: values.title,
+            description: values.description,
+            outcomes: values.outcomes,
+            category: values.category,
+            oracle: values.oracle,
+            image: values.image,
+            icon: values.icon,
+            fee: values.fee,
+            endDate: values.endDate,
+            resolutionSource: values.resolutionSource,
+            submittedBy: values.submittedBy,
+            wideFormat: values.wideFormat,
+            mmAddress: values.marketMakerAddress,
+        };
+        let responseStatus: number;
+        try {
+            const token = await getToken();
+            responseStatus = await createStrapiMarket(
+                data,
+                provider.getSigner(),
+                token,
+            );
+        } catch (err) {
+            alert(`Something went wrong ${err.toString()}`);
+            setLoading(false);
+            setConfirm(false);
+        }
         setConfirm(false);
         setLoading(false);
+        if (responseStatus === 200) {
+            alert(
+                `Market ${values.title} deployed at ${hasAddress} and added to strapi `,
+            );
+        } else {
+            alert(
+                `Market ${values.title} deployed at ${hasAddress}. Strapi creation failed`,
+            );
+        }
+        setValue(Form.MarketMakerAddress, undefined);
     };
+
+    useEffect(() => {
+        console.log(hasAddress);
+        if (hasAddress) {
+            handleSubmit(create)();
+        }
+    }, [hasAddress]);
 
     return (
         <div>
@@ -150,38 +226,36 @@ export default function Home() {
             {!user && <h1>Please login with Magic!</h1>}
 
             {user && (
-                <form onSubmit={handleSubmit} className={styles.form_market}>
+                <form
+                    onSubmit={handleSubmit(onSubmit)}
+                    className={styles.form_market}
+                >
                     <h3> Question </h3>
 
                     <h6>Title</h6>
                     <input
+                        {...register(Form.Title, { required: true })}
                         type="text"
-                        value={question.title}
-                        name="title"
-                        onChange={handleChangeQuestion}
-                        className={checkTitle ? styles.check_input : ""}
                     />
-
-                    {checkTitle && <p className={styles.check_p}> Required </p>}
-
+                    {errors.title && " Required"}
                     <h6>Description</h6>
                     <textarea
-                        value={question.description}
-                        name="description"
-                        onChange={handleChangeQuestion}
-                        className={checkDescription ? styles.check_input : ""}
+                        {...register(Form.Description, { required: true })}
                     />
-
-                    {checkDescription && (
-                        <p className={styles.check_p}> Required </p>
-                    )}
+                    {errors.description && " Required"}
+                    <h3> Category </h3>
+                    <input {...register(Form.Category)} type="text" />
+                    <h3> Image </h3>
+                    <input {...register(Form.Image)} type="text" />
+                    <h3> Icon </h3>
+                    <input {...register(Form.Icon)} type="text" />
 
                     <h3> Outcomes </h3>
                     <input
-                        type="text"
-                        value={outcome}
-                        name="outcome"
-                        onChange={handleChangeOutcome}
+                        {...register("outcome")}
+                        onChange={(e) => {
+                            handleChangeOutcome(e); // your method
+                        }}
                     />
 
                     <button
@@ -205,21 +279,53 @@ export default function Home() {
                             ))}
                         </div>
                     )}
+                    <h3> Wide Format </h3>
+
+                    <div className={styles.toggle_content}>
+                        <div className={styles.toggle_body}>
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleYesClick()}
+                                    className={
+                                        wideFormat
+                                            ? styles.button_yes
+                                            : styles.button_no
+                                    }
+                                >
+                                    Yes
+                                </button>
+                                <button
+                                    type="button"
+                                    className={
+                                        wideFormat
+                                            ? styles.button_no
+                                            : styles.button_yes
+                                    }
+                                    onClick={() => handleNoClick()}
+                                >
+                                    No
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                     <h3> Oracle </h3>
-                    <input
-                        type="text"
-                        value={oracle}
-                        name="oracle"
-                        onChange={handleChangeOracle}
-                    />
+                    <input {...register(Form.Oracle)} type="text" />
+
+                    <h3> End Date </h3>
+                    <input onChange={handleChangeEndDate} type="date" />
+
+                    <h3> Resolution Source </h3>
+                    <input {...register(Form.ResolutionSource)} type="text" />
+
+                    <h3> Submitted By </h3>
+                    <input {...register(Form.SubmittedBy)} type="text" />
 
                     <h3> Fee </h3>
                     <input
-                        type="number"
-                        value={fee}
-                        name="fee"
-                        onChange={handleChangeFee}
+                        {...register(Form.Fee, { valueAsNumber: true })}
+                        type="text"
                         onWheelCapture={handleScroll}
                     />
 
@@ -241,20 +347,20 @@ export default function Home() {
                             </div>
                         </label>
                         <input
-                            type="number"
-                            min={0}
-                            max={1000}
+                            {...register(Form.UserDefinedGas, {
+                                min: 0,
+                                max: 10000,
+                            })}
                             hidden={!manualGasCheck}
-                            value={userDefinedGas}
-                            name="userDefinedGas"
-                            onChange={handleChangeUserGasPrice}
+                            type="number"
                         />
                     </div>
 
                     <div className={styles.submit}>
                         <button
                             disabled={
-                                manualGasCheck && Number.isNaN(userDefinedGas)
+                                manualGasCheck &&
+                                Number.isNaN(Form.UserDefinedGas)
                             }
                             type="submit"
                         >
@@ -264,7 +370,7 @@ export default function Home() {
                             hidden={
                                 !manualGasCheck ||
                                 (manualGasCheck &&
-                                    !Number.isNaN(userDefinedGas))
+                                    !Number.isNaN(Form.UserDefinedGas))
                             }
                         >
                             Manually input gas is invalid
@@ -275,7 +381,7 @@ export default function Home() {
 
             {confirm && (
                 <Confirm
-                    yes={deploy}
+                    yes={handleSubmit(deploy)}
                     no={() => {
                         setConfirm(false);
                         setLoading(false);
