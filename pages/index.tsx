@@ -62,6 +62,7 @@ export default function Home() {
      */
     const handleChangeOutcome = (e: FormEvent<HTMLInputElement>) => {
         setOutcomeState(e.currentTarget.value);
+        setValue(Form.Outcome, e.currentTarget.value);
     };
 
     /**
@@ -73,15 +74,14 @@ export default function Home() {
         if (outcomeState && outcomeState !== "") {
             outcomes.push(outcomeState);
             setOutcomes(outcomes);
-            setOutcomeState("");
         }
         const value = getValues(Form.Outcome);
-        console.log(value);
         const array = getValues(Form.Outcomes);
         if (value && value !== "") {
             array.push(value);
             setValue(Form.Outcomes, array);
             setValue(Form.Outcome, "");
+            setOutcomeState("");
         }
     };
 
@@ -210,7 +210,6 @@ export default function Home() {
     };
 
     useEffect(() => {
-        console.log(hasAddress);
         if (hasAddress) {
             handleSubmit(create)();
         }
@@ -237,12 +236,12 @@ export default function Home() {
                         {...register(Form.Title, { required: true })}
                         type="text"
                     />
-                    {errors.title && " Required"}
+                    {errors.title && "Required"}
                     <h6>Description</h6>
                     <textarea
                         {...register(Form.Description, { required: true })}
                     />
-                    {errors.description && " Required"}
+                    {errors.description && "Required"}
                     <h3> Category </h3>
                     <input {...register(Form.Category)} type="text" />
                     <h3> Image </h3>
@@ -252,10 +251,11 @@ export default function Home() {
 
                     <h3> Outcomes </h3>
                     <input
-                        {...register("outcome")}
                         onChange={(e) => {
-                            handleChangeOutcome(e); // your method
+                            handleChangeOutcome(e);
                         }}
+                        value={getValues(Form.Outcome)}
+                        name="outcome"
                     />
 
                     <button
