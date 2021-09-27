@@ -83,6 +83,8 @@ export default function Home() {
             setValue(Form.Outcome, "");
             setOutcomeState("");
         }
+        const log = getValues(Form.Outcomes);
+        console.log("outcomes", log);
     };
 
     /**
@@ -138,6 +140,8 @@ export default function Home() {
         }
 
         setValue(Form.Outcomes, newOutcomes);
+        const log = getValues(Form.Outcomes);
+        console.log("outcomes", log);
     };
 
     const onSubmit = () => {
